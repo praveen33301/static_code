@@ -5,33 +5,71 @@ from datetime import datetime
 # Global variable
 stock_data = {}
 
-def addItem(item="default", qty=0, logs=[]):
+def addItem(item="default", qty=0, logs=None):
+    if logs is None:
+        logs = []
+    # Validate input types
+    if not isinstance(item, str):
+        logging.warning("Invalid item type: %s. Item must be a string.",
+                        type(item).__name__)
+        return
+    if not isinstance(qty, int):
+        logging.warning("Invalid quantity type: %s. Quantity must be an integer.",
+                        type(qty).__name__)
+        return
     if not item:
         return
     stock_data[item] = stock_data.get(item, 0) + qty
     logs.append("%s: Added %d of %s" % (str(datetime.now()), qty, item))
 
 def removeItem(item, qty):
+    # Validate input types
+    if not isinstance(item, str):
+        logging.warning("Invalid item type: %s. Item must be a string.",
+                        type(item).__name__)
+        return
+    if not isinstance(qty, int):
+        logging.warning("Invalid quantity type: %s. Quantity must be an integer.",
+                        type(qty).__name__)
+        return
+
     try:
         stock_data[item] -= qty
         if stock_data[item] <= 0:
             del stock_data[item]
-    except:
-        pass
+    except KeyError:
+        logging.warning("Item '%s' not found in inventory.", item)
 
 def getQty(item):
+    # Validate input type
+    if not isinstance(item, str):
+        logging.warning("Invalid item type: %s. Item must be a string.",
+                        type(item).__name__)
+        return 0
+
+    if item not in stock_data:
+        logging.warning("Item '%s' not found in inventory.", item)
+        return 0
     return stock_data[item]
 
 def loadData(file="inventory.json"):
-    f = open(file, "r")
     global stock_data
-    stock_data = json.loads(f.read())
-    f.close()
+    try:
+        with open(file, "r", encoding="utf-8") as f:
+            stock_data = json.loads(f.read())
+    except FileNotFoundError:
+        logging.warning("File '%s' not found. Starting with empty inventory.", file)
+        stock_data = {}
+    except json.JSONDecodeError:
+        logging.error("Invalid JSON in file '%s'. Starting with empty inventory.", file)
+        stock_data = {}
 
 def saveData(file="inventory.json"):
-    f = open(file, "w")
-    f.write(json.dumps(stock_data))
-    f.close()
+    try:
+        with open(file, "w", encoding="utf-8") as f:
+            f.write(json.dumps(stock_data))
+    except IOError as e:
+        logging.error("Error saving data to file '%s': %s", file, str(e))
 
 def printData():
     print("Items Report")
@@ -46,9 +84,12 @@ def checkLowItems(threshold=5):
     return result
 
 def main():
+    # Configure logging
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+
     addItem("apple", 10)
     addItem("banana", -2)
-    addItem(123, "ten")  # invalid types, no check
+    addItem(123, "ten")  # invalid types, now properly validated
     removeItem("apple", 3)
     removeItem("orange", 1)
     print("Apple stock:", getQty("apple"))
@@ -56,6 +97,7 @@ def main():
     saveData()
     loadData()
     printData()
-    eval("print('eval used')")  # dangerous
+    # Removed dangerous eval() usage
+    print('eval removed for security')
 
 main()
